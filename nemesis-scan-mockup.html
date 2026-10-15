@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEMESIS // Live Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b111a; --bg-2:#0e1620; --panel:#101a26; --panel-2:#13202e; --panel-3:#16283a;
+    --line:#1c2c3e; --line-2:#263b53;
+    --ink:#dbe6f2; --ink-dim:#8497ac; --ink-faint:#586a80;
+    --ares:#e8563f; --aegis:#8b7cf0; --horus:#3fb6d9;
+    --nem:#e6a52c; --nem-glow:#ffc247; --nem-deep:#c98812;
+    --crit:#e8563f; --high:#ef8f3c; --med:#e0b83a; --low:#3fb6d9;
+    --proven:#3fb98a; --crawl:#3fb6d9; --val:#e6a52c; --llm:#8b7cf0;
+    box-sizing:border-box;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(1200px 700px at 72% -8%, rgba(230,165,44,.05), transparent 60%), var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .disp{font-family:'Chakra Petch',sans-serif}
+
+  /* top bar */
+  .topbar{height:56px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'Chakra Petch';font-weight:700;letter-spacing:.12em;font-size:15px}
+  .brand .logo{width:28px;height:28px;border:2px solid var(--nem);border-radius:7px;display:grid;place-items:center;color:var(--nem);font-size:14px}
+  .eng{display:flex;flex-direction:column;gap:1px;margin-left:6px}
+  .eng .et{font-family:'Chakra Petch';font-weight:600;font-size:15px}
+  .eng .eu{font-size:11px;color:var(--ink-faint);font-family:'JetBrains Mono'}
+  .topright{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+  /* scan controls */
+  .ctrl{display:flex;align-items:center;gap:8px}
+  .cbtn{display:flex;align-items:center;gap:7px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink-dim);border-radius:8px;padding:9px 15px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+  .cbtn:hover{border-color:var(--nem);color:var(--nem-glow)}
+  .cbtn.pause.on{border-color:var(--med);color:var(--med)}
+  .cbtn.primary{background:var(--nem);color:#0b111a;border-color:var(--nem)}
+  .cbtn.primary:hover{background:var(--nem-glow)}
+  .cbtn .d{width:8px;height:8px;border-radius:50%}
+  .cbtn.aegis{border-color:var(--aegis);color:var(--aegis)}
+
+  /* pipeline header */
+  .pipe{display:flex;align-items:stretch;gap:0;background:var(--bg-2);border-bottom:1px solid var(--line);padding:0 20px;height:88px}
+  .stage{flex:1;display:flex;align-items:center;gap:14px;padding:14px 20px;position:relative}
+  .stage:not(:last-child)::after{content:"";position:absolute;right:0;top:50%;transform:translateY(-50%);width:26px;height:26px;border-right:2px solid var(--line-2);border-top:2px solid var(--line-2);rotate:45deg;z-index:2}
+  .stage .ring{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;position:relative;flex:0 0 auto}
+  .stage .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .stage .ring .num{font-family:'Chakra Petch';font-weight:700;font-size:17px}
+  .stage .meta{display:flex;flex-direction:column}
+  .stage .meta .lab{font-size:10px;letter-spacing:.16em;color:var(--ink-faint)}
+  .stage .meta .big{font-family:'Chakra Petch';font-weight:700;font-size:22px;line-height:1.1}
+  .stage .meta .sub{font-size:11px;color:var(--ink-dim)}
+  .stage.crawl .big{color:var(--crawl)} .stage.val .big{color:var(--val)} .stage.proven .big{color:var(--proven)}
+  .stage.crawl .num{color:var(--crawl)} .stage.val .num{color:var(--val)} .stage.proven .num{color:var(--proven)}
+  .flow-dot{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--nem-glow);box-shadow:0 0 10px var(--nem-glow);opacity:0;z-index:3}
+
+  /* layout */
+  .wrap{display:flex;height:calc(100% - 56px - 88px)}
+  .graph-pane{flex:1;position:relative;overflow:hidden}
+  #graph{width:100%;height:100%;display:block;cursor:grab}
+  .graph-pane .viewtabs{position:absolute;top:14px;left:14px;display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:4px;z-index:5}
+  .vt{padding:7px 14px;font-size:12px;color:var(--ink-dim);border-radius:6px;cursor:pointer;font-weight:500}
+  .vt.on{background:var(--panel-3);color:var(--nem-glow)}
+  .legend{position:absolute;bottom:14px;left:14px;display:flex;gap:14px;background:rgba(14,22,32,.85);border:1px solid var(--line);border-radius:9px;padding:9px 13px;z-index:5;font-size:11px;color:var(--ink-dim);flex-wrap:wrap;max-width:62%;backdrop-filter:blur(4px)}
+  .legend .lg{display:flex;align-items:center;gap:6px}
+  .legend .lg i{width:9px;height:9px;border-radius:50%}
+  .hud{position:absolute;top:14px;right:14px;background:rgba(14,22,32,.85);border:1px solid var(--line);border-radius:9px;padding:11px 14px;z-index:5;font-size:11px;min-width:168px;backdrop-filter:blur(4px)}
+  .hud .hr{display:flex;justify-content:space-between;margin-bottom:5px;color:var(--ink-dim)}
+  .hud .hr b{color:var(--ink);font-family:'JetBrains Mono'}
+  .hud .hr:last-child{margin-bottom:0}
+
+  /* right rail: proof feed */
+  .rail{width:360px;flex:0 0 360px;border-left:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column}
+  .rail .rh{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .rail .rh h3{margin:0;font-size:12px;letter-spacing:.14em;color:var(--ink-dim);font-family:'Chakra Petch';font-weight:600}
+  .rail .rh .live{margin-left:auto;font-size:10px;color:var(--proven);display:flex;align-items:center;gap:6px}
+  .rail .rh .live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--proven);box-shadow:0 0 8px var(--proven);animation:pulse 1.3s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .feed{flex:1;overflow-y:auto;padding:12px}
+  .pcard{border:1px solid var(--line);border-left:3px solid var(--proven);border-radius:9px;background:var(--panel);padding:12px;margin-bottom:10px;animation:slidein .4s ease}
+  @keyframes slidein{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+  .pcard.crit{border-left-color:var(--crit)} .pcard.high{border-left-color:var(--high)}
+  .pcard.med{border-left-color:var(--med)} .pcard.low{border-left-color:var(--low)}
+  .pcard .pc-top{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  .sev{font-family:'Chakra Petch';font-size:9px;font-weight:700;letter-spacing:.06em;padding:3px 7px;border-radius:4px}
+  .sev.crit{background:rgba(232,86,63,.16);color:var(--crit)} .sev.high{background:rgba(239,143,60,.16);color:var(--high)}
+  .sev.med{background:rgba(224,184,58,.16);color:var(--med)} .sev.low{background:rgba(63,182,217,.16);color:var(--low)}
+  .pcard .cvss{font-family:'JetBrains Mono';font-size:10px;color:var(--ink-faint)}
+  .pcard .via{margin-left:auto;font-size:9px;padding:2px 7px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-faint)}
+  .pcard .via.llm{color:#a99df5;border-color:rgba(139,124,240,.4)}
+  .pcard .pc-title{font-weight:600;font-size:13px;margin-bottom:3px}
+  .pcard .pc-path{font-family:'JetBrains Mono';font-size:11px;color:var(--ink-dim);word-break:break-all;margin-bottom:9px}
+  .pcard .pc-actions{display:flex;gap:7px}
+  .mini{border:1px solid var(--line-2);background:transparent;color:var(--ink-dim);border-radius:6px;padding:6px 11px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+  .mini.interact{color:var(--horus);border-color:var(--horus)} .mini.interact:hover{background:var(--horus);color:#04121e}
+  .mini:hover{border-color:var(--nem);color:var(--nem-glow)}
+
+  .empty{color:var(--ink-faint);font-size:12px;text-align:center;padding:40px 20px}
+
+  /* node tooltip */
+  .ntip{position:absolute;background:var(--panel-2);border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;max-width:260px;box-shadow:0 10px 30px -10px #000}
+  .ntip .nt-path{font-family:'JetBrains Mono';color:var(--ink);word-break:break-all;margin-bottom:4px}
+  .ntip .nt-meta{color:var(--ink-dim)}
+
+  /* interact modal */
+  .modal{position:fixed;inset:0;background:rgba(5,9,14,.72);display:none;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(3px)}
+  .modal.show{display:flex}
+  .mbox{width:min(900px,94vw);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;padding:0}
+  .mbox .mh{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+  .mbox .mh h3{margin:0;font-size:14px;font-family:'Chakra Petch'}
+  .mbox .mh .x{margin-left:auto;cursor:pointer;color:var(--ink-dim);font-size:20px;line-height:1}
+  .mb{padding:20px}
+  .ediv{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .editreq{width:100%;min-height:150px;background:var(--bg);border:1px solid var(--line-2);border-radius:8px;padding:11px;font-family:'JetBrains Mono';font-size:11px;line-height:1.6;color:var(--ink);resize:vertical}
+  .respbox{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:11px;font-family:'JetBrains Mono';font-size:11px;line-height:1.6;color:var(--ink-dim);min-height:150px;white-space:pre-wrap;overflow:auto}
+  .lbl{font-size:10px;letter-spacing:.1em;margin-bottom:6px}
+  .ibar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .authctx{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--ink-dim);padding:8px 11px;border:1px solid var(--line);border-radius:7px;background:var(--bg)}
+  .authctx .acdot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint)}
+  .authctx.live .acdot{background:var(--horus);box-shadow:0 0 8px var(--horus)}
+  .macro-steps{margin-top:12px;border-top:1px dashed var(--line-2);padding-top:12px;display:none}
+  .macro-steps.show{display:block}
+  .mstep{display:flex;align-items:center;gap:10px;font-size:12px;padding:6px 0;color:var(--ink-dim)}
+  .mstep .mn{width:20px;height:20px;border-radius:5px;background:var(--panel-3);display:grid;place-items:center;font-size:10px;font-family:'JetBrains Mono';color:var(--horus);flex:0 0 auto}
+  .mstep .ma{font-size:10px;color:var(--horus);opacity:.85;margin-left:12px}
+  .mstep .mm{font-family:'JetBrains Mono';color:var(--ink-faint);margin-left:auto;font-size:11px}
+
+  /* settings popover */
+  .pop{position:absolute;top:50px;right:20px;width:320px;background:var(--panel);border:1px solid var(--line-2);border-radius:12px;padding:16px;z-index:30;display:none;box-shadow:0 20px 50px -16px #000}
+  .pop.show{display:block}
+  .pop h4{margin:0 0 12px;font-size:12px;letter-spacing:.1em;color:var(--ink-dim);font-family:'Chakra Petch'}
+  .pop .frow{margin-bottom:14px}
+  .pop label{display:block;font-size:11px;color:var(--ink-dim);margin-bottom:7px}
+  .depth{display:flex;align-items:center;gap:12px}
+  .depth input[type=range]{flex:1;accent-color:var(--nem)}
+  .depth .dv{font-family:'Chakra Petch';font-weight:700;font-size:18px;color:var(--nem-glow);width:24px;text-align:center}
+  .exts{display:flex;flex-wrap:wrap;gap:6px}
+  .ext{font-size:11px;font-family:'JetBrains Mono';padding:5px 9px;border-radius:6px;border:1px solid var(--line-2);color:var(--ink-dim);cursor:pointer}
+  .ext.on{background:rgba(230,165,44,.12);border-color:var(--nem);color:var(--nem-glow)}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:12px 17px;font-size:13px;color:var(--ink);opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:92vw;box-shadow:0 14px 44px -14px #000}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast b.ae{color:var(--aegis)} .toast b.hu{color:var(--horus)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">◎</span>MACULA</div>
+  <div class="eng">
+    <div class="et">NEMESIS <span style="color:var(--nem)">// Live Scan</span></div>
+    <div class="eu">WebGoat Elias · http://10.0.0.49:8080/WebGoat</div>
+  </div>
+  <div class="topright">
+    <div class="ctrl">
+      <button class="cbtn" id="settingsBtn">⚙ Scan settings</button>
+      <button class="cbtn pause on" id="pauseBtn"><span class="d" style="background:var(--med)"></span>Pause</button>
+      <button class="cbtn" id="restartBtn">↻ Restart</button>
+      <button class="cbtn aegis" id="aegisBtn">⛉ Send validated → AEGIS</button>
+    </div>
+  </div>
+  <!-- settings popover -->
+  <div class="pop" id="pop">
+    <h4>SCAN SETTINGS</h4>
+    <div class="frow">
+      <label>Crawl depth</label>
+      <div class="depth"><input type="range" min="1" max="10" value="5" id="depth"><span class="dv" id="depthv">5</span></div>
+    </div>
+    <div class="frow">
+      <label>Extensions &amp; routes to hunt</label>
+      <div class="exts" id="exts"></div>
+    </div>
+    <div class="frow" style="margin-bottom:0">
+      <label>Crawl mode</label>
+      <div class="exts"><span class="ext on">Authenticated</span><span class="ext">Unauthenticated</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- pipeline -->
+<div class="pipe" id="pipe">
+  <div class="stage crawl">
+    <div class="ring"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="var(--line)" stroke-width="4"></circle><circle id="ringCrawl" cx="24" cy="24" r="21" fill="none" stroke="var(--crawl)" stroke-width="4" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132"></circle></svg><span class="num" id="ringCrawlN">0%</span></div>
+    <div class="meta"><span class="lab">CRAWL · DISCOVERY</span><span class="big" id="nCrawl">0</span><span class="sub">resources mapped</span></div>
+  </div>
+  <div class="stage val">
+    <div class="ring"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="var(--line)" stroke-width="4"></circle><circle id="ringVal" cx="24" cy="24" r="21" fill="none" stroke="var(--val)" stroke-width="4" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132"></circle></svg><span class="num" id="ringValN">0</span></div>
+    <div class="meta"><span class="lab">VALIDATE · AUTO</span><span class="big" id="nVal">0</span><span class="sub">inputs tested live</span></div>
+  </div>
+  <div class="stage proven">
+    <div class="ring"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="var(--line)" stroke-width="4"></circle><circle id="ringProv" cx="24" cy="24" r="21" fill="none" stroke="var(--proven)" stroke-width="4" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132"></circle></svg><span class="num" id="ringProvN">0</span></div>
+    <div class="meta"><span class="lab">PROVEN · EVIDENCE</span><span class="big" id="nProv">0</span><span class="sub">confirmed · <span id="nFp">0</span> FP pruned</span></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- graph -->
+  <div class="graph-pane">
+    <div class="viewtabs">
+      <div class="vt on" data-view="tree">Discovery Tree</div>
+      <div class="vt" data-view="attack">Attack Surface</div>
+    </div>
+    <svg id="graph"></svg>
+    <div class="ntip" id="ntip"></div>
+    <div class="hud">
+      <div class="hr">Status <b id="hudStatus" style="color:var(--med)">paused</b></div>
+      <div class="hr">Depth <b id="hudDepth">5</b></div>
+      <div class="hr">Coverage <b id="hudCov">0%</b></div>
+      <div class="hr">LLM escalations <b id="hudLlm" style="color:#a99df5">0</b></div>
+    </div>
+    <div class="legend">
+      <div class="lg"><i style="background:var(--ink-faint)"></i>Resource</div>
+      <div class="lg"><i style="background:var(--crawl)"></i>Crawling</div>
+      <div class="lg"><i style="background:var(--val);box-shadow:0 0 6px var(--val)"></i>Validating</div>
+      <div class="lg"><i style="background:var(--proven);box-shadow:0 0 6px var(--proven)"></i>Proven</div>
+      <div class="lg"><i style="background:var(--crit);box-shadow:0 0 6px var(--crit)"></i>Critical</div>
+      <div class="lg"><i style="background:var(--ink-faint);opacity:.4"></i>Clean / FP</div>
+    </div>
+  </div>
+
+  <!-- proof feed -->
+  <div class="rail">
+    <div class="rh"><h3>PROOF FEED</h3><span class="live" id="feedLive">live</span></div>
+    <div class="feed" id="feed"><div class="empty" id="feedEmpty">Press <b style="color:var(--nem-glow)">Pause</b> to start the scan.<br>Confirmed findings stream in here as the crawler feeds validation.</div></div>
+  </div>
+</div>
+
+<!-- interact modal -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="mh"><h3 id="mTitle">Interact</h3><span class="x" id="mClose">✕</span></div>
+    <div class="mb">
+      <div class="ediv">
+        <div><div class="lbl" style="color:var(--horus)">EDITABLE REQUEST</div><textarea class="editreq" id="mReq"></textarea></div>
+        <div><div class="lbl" style="color:var(--proven)">LIVE RESPONSE</div><div class="respbox" id="mResp">— resend to see the response —</div></div>
+      </div>
+      <div class="authctx" id="mAuth"><span class="acdot"></span>Session context — <span class="mono">auth_profile: WebGoat nemesis</span> · <span id="mAuthState">idle</span></div>
+      <div class="ibar">
+        <button class="mini interact" id="mSend">Resend request</button>
+        <button class="mini" id="mRec"><span style="color:var(--ares)">●</span> Start recording</button>
+        <button class="mini" id="mStop" disabled>■ Stop recording</button>
+        <button class="mini" id="mSave" disabled>Save recording</button>
+        <button class="mini" id="mReplay" disabled>Replay</button>
+        <span style="margin-left:auto;font-size:11px;color:var(--ink-faint)" id="mNote">Modify &amp; resend, or record a macro</span>
+      </div>
+      <div class="macro-steps" id="mMacro"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+  const svg=$('#graph'),NS='http://www.w3.org/2000/svg';
+  let W=svg.clientWidth,H=svg.clientHeight;
+  function resize(){W=svg.clientWidth;H=svg.clientHeight;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);}
+  window.addEventListener('resize',resize);resize();
+
+  let tHide;function toast(h){const t=$('#toast');t.innerHTML=h;t.classList.add('show');clearTimeout(tHide);tHide=setTimeout(()=>t.classList.remove('show'),3600);}
+
+  // ---- settings ----
+  const EXTS=['html','php','aspx','jsp','js','json','do','action','cgi','/api/','.env','/graphql'];
+  const extBox=$('#exts');EXTS.forEach((e,i)=>{const s=document.createElement('span');s.className='ext'+(i<6?' on':'');s.textContent=e;s.onclick=()=>s.classList.toggle('on');extBox.appendChild(s);});
+  $('#settingsBtn').onclick=e=>{e.stopPropagation();$('#pop').classList.toggle('show');};
+  document.addEventListener('click',e=>{if(!$('#pop').contains(e.target)&&e.target!==$('#settingsBtn'))$('#pop').classList.remove('show');});
+  $('#depth').oninput=e=>{$('#depthv').textContent=e.target.value;$('#hudDepth').textContent=e.target.value;};
+
+  // ---- scan model: tree of resources, some carry inputs that validate ----
+  // node: {id,label,path,x,y,depth,parent,state,sev,via,title}
+  let nodes=[],links=[],idc=0;
+  const root={id:idc++,label:'/WebGoat',path:'http://10.0.0.49:8080/WebGoat',depth:0,parent:null,state:'done',sev:null};
+  root.x=W*0.30;root.y=H*0.5;nodes.push(root);
+
+  // scripted discovery (what the crawler "finds"), some become findings
+  const PLAN=[
+    // depth 1 — top-level surface
+    {p:'/login',d:1},
+    {p:'/register.mvc',d:1,inp:['username','password','matchingPassword'],find:{cls:'A03',sev:'med',cvss:'5.3',title:'Reflected input on register.mvc',via:'catalog'}},
+    {p:'/welcome.mvc',d:1},
+    {p:'/service',d:1},
+    {p:'/images',d:1},
+    {p:'/css',d:1},
+    {p:'/robots.txt',d:1},
+    {p:'/api',d:1},
+    {p:'/admin',d:1},
+    // depth 2 — service/lesson routes
+    {p:'/service/lessonmenu.mvc',d:2},
+    {p:'/service/restartlesson.mvc',d:2},
+    {p:'/CrossSiteScripting',d:2,inp:['field1'],find:{cls:'A03',sev:'high',cvss:'7.4',title:'Reflected XSS (CrossSiteScripting lesson)',via:'catalog'}},
+    {p:'/SqlInjection',d:2,inp:['account'],find:{cls:'A03',sev:'crit',cvss:'9.1',title:'SQL injection in /SqlInjection',via:'catalog'}},
+    {p:'/SqlInjectionAdvanced',d:2,inp:['query'],find:{cls:'A03',sev:'crit',cvss:'9.8',title:'Blind SQLi (advanced)',via:'llm'}},
+    {p:'/IDOR',d:2,inp:['id'],find:{cls:'A01',sev:'high',cvss:'8.1',title:'IDOR on /IDOR/profile',via:'llm'}},
+    {p:'/CSRF',d:2,inp:['token'],find:{cls:'A01',sev:'med',cvss:'6.5',title:'CSRF candidate (CSRF lesson)',via:'catalog'}},
+    {p:'/access-control',d:2},
+    {p:'/JWT',d:2,inp:['jwt'],find:{cls:'A02',sev:'high',cvss:'7.5',title:'JWT weak signature',via:'llm'}},
+    {p:'/headers',d:2,find:{cls:'A05',sev:'low',cvss:'3.1',title:'Missing security headers',via:'fp'}},
+    {p:'/actuator',d:2,find:{cls:'A05',sev:'med',cvss:'5.3',title:'Spring actuator exposed',via:'catalog'}},
+    {p:'/js/app.min.js',d:2},
+    {p:'/images/logo.png',d:2},
+    // depth 2 — API surface
+    {p:'/api/v2/orders',d:2,inp:['sort'],find:{cls:'A03',sev:'crit',cvss:'9.8',title:'SQLi in /api/v2/orders (sort param)',via:'catalog'}},
+    {p:'/api/v2/users',d:2,inp:['id'],find:{cls:'A01',sev:'high',cvss:'8.2',title:'BOLA on /api/v2/users',via:'llm'}},
+    {p:'/api/v2/health',d:2},
+    {p:'/api/swagger.json',d:2,find:{cls:'A05',sev:'low',cvss:'2.6',title:'OpenAPI schema exposed',via:'fp'}},
+    // depth 3 — deeper nested
+    {p:'/PathTraversal',d:3,inp:['file'],find:{cls:'A01',sev:'high',cvss:'7.5',title:'Path traversal in file param',via:'catalog'}},
+    {p:'/XXE',d:3,inp:['xml'],find:{cls:'A05',sev:'crit',cvss:'9.0',title:'XXE on XML upload',via:'llm'}},
+    {p:'/actuator/env',d:3,find:{cls:'A05',sev:'high',cvss:'7.1',title:'actuator/env leaks config',via:'catalog'}},
+    {p:'/actuator/heapdump',d:3,find:{cls:'A05',sev:'crit',cvss:'9.1',title:'Heap dump downloadable',via:'catalog'}},
+    {p:'/admin/users',d:3,inp:['role'],find:{cls:'A01',sev:'crit',cvss:'9.3',title:'Privilege escalation via role param',via:'llm'}},
+    {p:'/admin/config',d:3},
+    {p:'/api/v2/orders/export',d:3,find:{cls:'A05',sev:'med',cvss:'5.9',title:'Unauthenticated CSV export',via:'catalog'}},
+  ];
+
+  let viewMode='tree';
+  function nodeColor(n){
+    if(n.state==='crawl')return'var(--crawl)';
+    if(n.state==='val')return'var(--val)';
+    if(n.state==='proven'){return{crit:'var(--crit)',high:'var(--high)',med:'var(--med)',low:'var(--low)'}[n.sev]||'var(--proven)';}
+    if(n.state==='fp'||n.state==='clean')return'var(--ink-faint)';
+    return'var(--ink-faint)';
+  }
+  function nodeR(n){if(n.depth===0)return 13;if(n.find)return 8;return 5;}
+
+  // radial layout: depth = ring distance from root; siblings spread evenly by angle
+  function relayout(){
+    root.x=W*0.32;root.y=H*0.52;
+    const ringGap=Math.min(W*0.9,H)*0.15;
+    const byDepth={};
+    nodes.forEach(n=>{if(n.depth>0)(byDepth[n.depth]=byDepth[n.depth]||[]).push(n);});
+    Object.keys(byDepth).forEach(d=>{
+      const arr=byDepth[d],dep=+d;
+      const span=Math.PI*1.5, start=-Math.PI*0.75;
+      arr.forEach((n,i)=>{
+        const ang=start + span*((i+0.5)/arr.length) + dep*0.12;
+        const rad=ringGap*dep + 55;
+        n.x=root.x+Math.cos(ang)*rad*1.5;
+        n.y=root.y+Math.sin(ang)*rad;
+        n.x=Math.max(34,Math.min(W-34,n.x));
+        n.y=Math.max(46,Math.min(H-34,n.y));
+      });
+    });
+  }
+  function place(n){applyLayout();}
+  function applyLayout(){if(viewMode==='tree')layoutTree();else relayout();}
+
+  function ok(n){return n&&Number.isFinite(n.x)&&Number.isFinite(n.y);}
+  function draw(){
+    svg.innerHTML='';
+    // links
+    const byId=id=>nodes.find(x=>x.id===id);
+    links.forEach(l=>{
+      const a=byId(l[0]),b=byId(l[1]);if(!ok(a)||!ok(b))return;
+      const ln=document.createElementNS(NS,'line');
+      ln.setAttribute('x1',a.x);ln.setAttribute('y1',a.y);ln.setAttribute('x2',b.x);ln.setAttribute('y2',b.y);
+      ln.setAttribute('stroke','var(--line-2)');ln.setAttribute('stroke-width',b.find?1.4:0.9);ln.setAttribute('opacity',.6);
+      svg.appendChild(ln);
+    });
+    // nodes
+    nodes.forEach(n=>{
+      if(!ok(n))return;
+      const g=document.createElementNS(NS,'g');g.style.cursor=n.find?'pointer':'default';
+      if((n.state==='val')||(n.state==='proven'&&n.sev)){
+        const halo=document.createElementNS(NS,'circle');
+        halo.setAttribute('cx',n.x);halo.setAttribute('cy',n.y);halo.setAttribute('r',nodeR(n)+7);
+        halo.setAttribute('fill','none');halo.setAttribute('stroke',nodeColor(n));halo.setAttribute('stroke-width',1.2);halo.setAttribute('opacity',.35);
+        if(n.state==='val'){const an=document.createElementNS(NS,'animate');an.setAttribute('attributeName','r');an.setAttribute('values',`${nodeR(n)+3};${nodeR(n)+11};${nodeR(n)+3}`);an.setAttribute('dur','1.1s');an.setAttribute('repeatCount','indefinite');halo.appendChild(an);const ao=document.createElementNS(NS,'animate');ao.setAttribute('attributeName','opacity');ao.setAttribute('values','.5;.1;.5');ao.setAttribute('dur','1.1s');ao.setAttribute('repeatCount','indefinite');halo.appendChild(ao);}
+        g.appendChild(halo);
+      }
+      const c=document.createElementNS(NS,'circle');
+      c.setAttribute('cx',n.x);c.setAttribute('cy',n.y);c.setAttribute('r',nodeR(n));
+      c.setAttribute('fill',nodeColor(n));
+      c.setAttribute('opacity',(n.state==='fp'||n.state==='clean')?.4:1);
+      if(n.state==='proven'&&n.sev)c.setAttribute('filter','url(#glow)');
+      g.appendChild(c);
+      if(viewMode==='tree'||n.depth<=1){const t=document.createElementNS(NS,'text');t.setAttribute('x',n.x+nodeR(n)+6);t.setAttribute('y',n.y+3.5);t.setAttribute('fill',n.find?'var(--ink)':'var(--ink-dim)');t.setAttribute('font-size','11');t.setAttribute('font-family','JetBrains Mono');t.textContent=n.label+(n.find&&n.state==='proven'?'  ●':'');if(n.find&&n.state==='proven'){t.querySelector&&0;}g.appendChild(t);
+        if(viewMode==='tree'&&n.find&&n.state==='proven'){const b=document.createElementNS(NS,'text');b.setAttribute('x',n.x+nodeR(n)+6);b.setAttribute('y',n.y+15);b.setAttribute('fill',nodeColor(n));b.setAttribute('font-size','9');b.setAttribute('font-family','Inter');b.textContent=n.title+' · CVSS '+n.cvss;g.appendChild(b);}
+      }
+      if(n.find){
+        g.onmouseenter=ev=>showTip(ev,n);g.onmouseleave=hideTip;
+        g.onclick=()=>{if(n.state==='proven')openInteract(n);};
+      }
+      svg.appendChild(g);
+    });
+    // glow filter
+    const defs=document.createElementNS(NS,'defs');
+    defs.innerHTML='<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+    svg.appendChild(defs);
+  }
+
+  function showTip(ev,n){const t=$('#ntip');t.innerHTML=`<div class="nt-path">${n.path}</div><div class="nt-meta">${n.find?(n.title+' · '+n.find.cls+' · CVSS '+(n.cvss||'—')):'resource'} · <b style="color:${nodeColor(n)}">${n.state}</b></div>`;const r=svg.getBoundingClientRect();t.style.left=(n.x+14)+'px';t.style.top=(n.y-10)+'px';t.style.opacity=1;}
+  function hideTip(){$('#ntip').style.opacity=0;}
+
+  // ---- counters ----
+  let crawled=0,validated=0,proven=0,fp=0,llm=0,totalPlan=PLAN.length;
+  const RING=132;
+  function setRing(el,num,frac,fmt){$('#'+el).style.strokeDashoffset=RING*(1-frac);$('#'+el+'N').textContent=fmt;}
+  function updatePipe(){
+    $('#nCrawl').textContent=crawled;$('#nVal').textContent=validated;$('#nProv').textContent=proven;$('#nFp').textContent=fp;
+    const cfrac=crawled/totalPlan;
+    setRing('ringCrawl','ringCrawl',cfrac,Math.round(cfrac*100)+'%');
+    const valTargets=PLAN.filter(p=>p.find).length;
+    setRing('ringVal','ringVal',valTargets?validated/valTargets:0,validated);
+    setRing('ringProv','ringProv',valTargets?proven/Math.max(1,valTargets):0,proven);
+    $('#hudCov').textContent=Math.round(cfrac*100)+'%';
+    $('#hudLlm').textContent=llm;$('#ringCrawlN').textContent=Math.round(cfrac*100)+'%';
+  }
+  // fix ring id usage
+  function ring(el,frac,txt){const c=$('#'+el);if(c)c.style.strokeDashoffset=RING*(1-frac);}
+  function refreshRings(){
+    const cfrac=crawled/totalPlan;ring('ringCrawl',cfrac);$('#ringCrawlN').textContent=Math.round(cfrac*100)+'%';
+    const vt=PLAN.filter(p=>p.find).length;
+    ring('ringVal',vt?validated/vt:0);$('#ringValN').textContent=validated;
+    ring('ringProv',vt?proven/vt:0);$('#ringProvN').textContent=proven;
+    // big numbers + hud
+    $('#nCrawl').textContent=crawled;$('#nVal').textContent=validated;$('#nProv').textContent=proven;$('#nFp').textContent=fp;
+    $('#hudCov').textContent=Math.round(cfrac*100)+'%';$('#hudLlm').textContent=llm;
+  }
+
+  // ---- proof feed ----
+  function addProof(n){
+    $('#feedEmpty')&&$('#feedEmpty').remove();
+    const f=n.find;const card=document.createElement('div');card.className='pcard '+f.sev;
+    card.innerHTML=`<div class="pc-top"><span class="sev ${f.sev}">${f.sev.toUpperCase()}</span><span class="cvss">CVSS ${f.cvss}</span><span class="via ${f.via==='llm'?'llm':''}">${f.via==='llm'?'LLM-synthesized':'catalog'}</span></div>
+      <div class="pc-title">${f.title}</div><div class="pc-path">${f.cls} · ${n.path}</div>
+      <div class="pc-actions"><button class="mini interact">Interact</button><button class="mini">Evidence</button><button class="mini">→ AEGIS</button></div>`;
+    card.querySelector('.interact').onclick=()=>openInteract(n);
+    card.querySelectorAll('.mini')[2].onclick=()=>toast('Sent to <b class="ae">AEGIS › NEMESIS section</b> · detection rule queued for '+f.cls);
+    $('#feed').prepend(card);
+  }
+
+  // ---- scan engine (scripted, pausable) ----
+  let running=false,step=0,timer=null;
+  function tick(){
+    if(!running)return;
+    if(step>=PLAN.length){running=false;$('#hudStatus').textContent='complete';$('#hudStatus').style.color='var(--proven)';$('#feedLive').textContent='done';$('#pauseBtn').innerHTML='<span class="d" style="background:var(--proven)"></span>Done';return;}
+    const pl=PLAN[step++];
+    // create crawl node
+    const n={id:idc++,label:pl.p,path:root.path+pl.p,depth:pl.d,parent:root.id,state:'crawl',find:pl.find||null,sev:pl.find?pl.find.sev:null,cvss:pl.find?pl.find.cvss:null,title:pl.find?pl.find.title:null};
+    nodes.push(n);
+    // link to parent by longest matching path prefix; fall back to nearest shallower node
+    let parent=root,bestLen=-1;
+    nodes.forEach(c=>{
+      if(c.id===n.id||c.depth>=pl.d)return;
+      const cp=c.path, matches = n.path.startsWith(cp+'/') || n.path.startsWith(cp);
+      if(matches && cp.length>bestLen){bestLen=cp.length;parent=c;}
+    });
+    if(bestLen<0){for(let i=nodes.length-2;i>=0;i--){if(nodes[i].depth===pl.d-1){parent=nodes[i];break;}}}
+    n.parent=parent.id;links.push([parent.id,n.id]);
+    applyLayout();
+    crawled++;draw();refreshRings();
+
+    if(pl.find){
+      // auto-validate shortly after crawl (no button)
+      setTimeout(()=>{ if(!running&&!paused)return; n.state='val';validated++;draw();refreshRings();
+        if(pl.find.via==='llm'){llm++;$('#hudLlm').textContent=llm;}
+        setTimeout(()=>{
+          if(pl.find.via==='fp'){n.state='fp';fp++;}
+          else{n.state='proven';proven++;addProof(n);}
+          draw();refreshRings();
+        }, pl.find.via==='llm'?900:550);
+      }, 420);
+    }
+    timer=setTimeout(tick, 520);
+  }
+
+  let paused=true;
+  function startScan(){if(running)return;running=true;paused=false;$('#hudStatus').textContent='scanning';$('#hudStatus').style.color='var(--crawl)';$('#feedLive').textContent='live';$('#pauseBtn').innerHTML='<span class="d" style="background:var(--crawl)"></span>Pause';$('#pauseBtn').classList.remove('on');tick();}
+  function pauseScan(){running=false;paused=true;clearTimeout(timer);$('#hudStatus').textContent='paused';$('#hudStatus').style.color='var(--med)';$('#pauseBtn').innerHTML='<span class="d" style="background:var(--med)"></span>Resume';$('#pauseBtn').classList.add('on');}
+
+  $('#pauseBtn').onclick=()=>{
+    const done=step>=PLAN.length;if(done)return;
+    if(running)pauseScan(); else startScan();
+  };
+  $('#restartBtn').onclick=()=>{
+    running=false;clearTimeout(timer);step=0;idc=1;crawled=validated=proven=fp=llm=0;
+    nodes=[root];links=[];root.state='done';applyLayout();draw();refreshRings();
+    $('#feed').innerHTML='<div class="empty" id="feedEmpty">Scan reset. Press <b style="color:var(--nem-glow)">Resume</b> to start again.</div>';
+    $('#hudStatus').textContent='idle';$('#hudStatus').style.color='var(--med)';
+    $('#pauseBtn').innerHTML='<span class="d" style="background:var(--med)"></span>Start';$('#pauseBtn').classList.add('on');
+    toast('Scan reset');
+  };
+  $('#aegisBtn').onclick=()=>{if(proven===0){toast('No validated findings yet');return;}toast('All validated findings sent to <b class="ae">AEGIS › NEMESIS section</b>');};
+
+  // view tabs (attack surface vs tree) — tree is a simpler vertical layout
+  $$('.vt').forEach(v=>v.onclick=()=>{$$('.vt').forEach(x=>x.classList.remove('on'));v.classList.add('on');
+    viewMode=v.dataset.view;
+    if(viewMode==='tree'){layoutTree();}else{relayout();}draw();});
+  function layoutTree(){
+    // depth-first ordering so children sit directly under their parent
+    const childrenOf=id=>nodes.filter(n=>n.parent===id);
+    const order=[];
+    (function walk(n){order.push(n);childrenOf(n.id).forEach(walk);})(root);
+    const rowH=Math.max(20,(H-70)/Math.max(order.length,1));
+    order.forEach((n,i)=>{
+      n.x=60+n.depth*165;
+      n.y=46+i*rowH;
+    });
+  }
+
+  // ---- interact modal (same engine as before) ----
+  const modal=$('#modal');let curNode=null,recording=false,stepNo=0;
+  function openInteract(n){
+    curNode=n;$('#mTitle').textContent='Interact · '+(n.title||n.path);
+    $('#mReq').value=`GET ${n.path.replace(root.path,'/WebGoat')}?${n.find&&PLAN.find(p=>root.path+p.p===n.path)?'':''} HTTP/1.1\nHost: 10.0.0.49:8080\nCookie: {{session}}`;
+    $('#mResp').textContent='— resend to see the response —';$('#mMacro').innerHTML='';$('#mMacro').classList.remove('show');
+    $('#mAuthState').textContent='idle';$('#mAuth').classList.remove('live');
+    $('#mStop').disabled=true;$('#mSave').disabled=true;$('#mReplay').disabled=true;recording=false;stepNo=0;
+    $('#mRec').innerHTML='<span style="color:var(--ares)">●</span> Start recording';$('#mRec').style.cssText='';
+    modal.classList.add('show');
+  }
+  $('#mClose').onclick=()=>modal.classList.remove('show');
+  modal.onclick=e=>{if(e.target===modal)modal.classList.remove('show');};
+  $('#mSend').onclick=()=>{const r=$('#mResp');r.textContent='sending…';setTimeout(()=>{
+    r.textContent='HTTP/1.1 200 OK\nX-Response-Time: 5031ms  ← baseline 41ms\n\n{"result":"proof marker reflected"}';
+    if(recording){stepNo++;appendStep();$('#mAuthState').textContent='injected Cookie: session=a1b2… · carried forward';}
+    else toast('Response received · '+((Math.random()*40+8)|0)+'ms');
+  },420);};
+  const CHAIN=[['GET','/login','200 · login form','seed from auth_profile'],['POST','/auth','302 · Set-Cookie','captured session → carried'],['GET','/IDOR/profile','200 · target','injected Cookie']];
+  function appendStep(){const s=CHAIN[Math.min(stepNo-1,CHAIN.length-1)];const row=document.createElement('div');row.className='mstep';row.innerHTML=`<span class="mn">${stepNo}</span><span class="mono">${s[0]} ${s[1]}</span><span class="ma">${s[3]}</span><span class="mm">${s[2]}</span>`;$('#mMacro').appendChild(row);}
+  $('#mRec').onclick=()=>{if(recording)return;recording=true;stepNo=0;$('#mRec').innerHTML='● Recording…';$('#mRec').style.cssText='color:#fff;background:var(--ares);border-color:var(--ares)';$('#mStop').disabled=false;$('#mMacro').classList.add('show');$('#mMacro').innerHTML='<div style="font-size:11px;color:var(--horus);margin-bottom:8px">Recording request/response steps. Session cookie/token captured and injected into each step to stay authenticated.</div>';$('#mAuth').classList.add('live');$('#mAuthState').textContent='seeded from auth profile';$('#mNote').textContent='Recording · Resend to capture each step';};
+  $('#mStop').onclick=()=>{if(!recording)return;recording=false;$('#mRec').innerHTML='<span style="color:var(--ares)">●</span> Start recording';$('#mRec').style.cssText='';$('#mStop').disabled=true;$('#mSave').disabled=(stepNo===0);$('#mAuth').classList.remove('live');$('#mAuthState').textContent='stopped · '+stepNo+' steps';$('#mNote').textContent='Stopped · '+stepNo+' steps. Save to make it a permanent validator.';};
+  $('#mSave').onclick=()=>{$('#mSave').disabled=true;$('#mReplay').disabled=false;toast('Saved as <b class="hu">forge.recorded.authchain.v1</b> — permanent validator in the catalog');};
+  $('#mReplay').onclick=()=>{const rows=[...$('#mMacro').querySelectorAll('.mstep')];rows.forEach((r,i)=>setTimeout(()=>{r.style.background='rgba(63,182,217,.08)';r.querySelector('.mn').style.background='var(--horus)';r.querySelector('.mn').style.color='#04121e';},i*420));$('#mNote').textContent='Replaying…';setTimeout(()=>toast('Replay complete · '+rows.length+' steps automated'),rows.length*420+300);};
+
+  applyLayout();draw();refreshRings();
+})();
+</script>
+</body>
+</html>
